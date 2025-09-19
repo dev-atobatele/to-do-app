@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="mt-4">My TODO List</h1>
+<a href="{{ url_for('add') }}" class="btn btn-primary mb-3">Add TODO</a>
+
+<ul class="list-group" id="todo-list">
+    {% for todo in todos %}
+    <li class="list-group-item d-flex justify-content-between align-items-center" 
+        data-id="{{ todo.id }}" draggable="true" name="order">
+        {{ todo.title }}
+        
+        {% if todo.label %}
+        <span class="btn btn-secondary text-center px-3">{{ todo.label }}</span>  <!-- ✅ Center label -->
+        {% endif %}
+        
+        <a href="{{ url_for('delete', id=todo.id) }}" class="btn btn-danger btn-sm">Delete</a>
+    </li>
+    {% endfor %}
+</ul>
+
+<script>
+    const todoList = document.getElementById('todo-list');
+    let draggedItem = null;
+
+    // Handle drag start
+    todoList.addEventListener('dragstart', function (e) {
+        draggedItem = e.target;
+    });
+
+    // Handle drag end
+    todoList.addEventListener('dragend', function (e) {
+        draggedItem = null;
+    });
+
+    // Allow drop
+    todoList.addEventListener('dragover', function (e) {
+        e.preventDefault();
+    });
+
+    // Handle drop
+    todoList.addEventListener('drop', function (e) {
+        const target = e.target;
+        if (target && target !== draggedItem && target.nodeName === 'LI') {
+            // Swap the dragged item with the target item
+            const draggedItemId = draggedItem.getAttribute('data-id');
+            const targetItemId = target.getAttribute('data-id');
+            
+            // Update the order of items in the DOM (rearrange)
+            const draggedItemClone = draggedItem.cloneNode(true);
+            const targetItemClone = target.cloneNode(true);
+            todoList.replaceChild(targetItemClone, draggedItem);
+            todoList.replaceChild(draggedItemClone, target);
+
+            // Send the new order to the server
+            const newOrder = [...todoList.children].map(item => item.getAttribute('data-id'));
+
+            // Send the new order to the server using Fetch API
+            const formData = new FormData();
+            newOrder.forEach(id => formData.append("order", id));  // No [] needed
+
+            fetch("/reorder", {
+                method: "POST",
+                body: formData,  // No need to set headers, FormData does it automatically
+            })
+            .then(response => response.text())  // Expecting plain text, not JSON
+            .then(data => console.log("Server response:", data))
+            .catch(error => console.error("Error:", error));
+
+        }
+    });
+</script>
+{% endblock %}
